@@ -1,5 +1,6 @@
 # depslib dependency file v1.0
-1609615782 source:/home/acf/Bureau/firework/main.cpp
+1609609089 source:/home/acf/Bureau/firework/main.cpp
+	<list>
 	<cmath>
 	<ctime>
 	<vector>

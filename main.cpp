@@ -1,3 +1,4 @@
+#include <list>
 #include <cmath>
 #include <ctime>
 #include <vector>
@@ -12,6 +13,8 @@ int randint(int, int);
 const float pi = 3.14159265358979323846;
 
 const int width(480), height(360);
+
+const Uint32 bg = 0x1e1e1e;
 
 struct Vector
 {
@@ -49,14 +52,15 @@ protected:
 	float v_magnitude;
 	Uint32 color;
 
-	static const int len;
+	int len;
 
 public:
 
     Dash(int x, int y, float a, Uint32 c) :
     	start(x, y),
     	velocity(std::cos(a), std::sin(a)),
-    	v_magnitude(2), color(c)
+    	v_magnitude(2), color(c),
+    	len(randint(1, 10))
     {}
 
     virtual ~Dash() {}
@@ -79,8 +83,6 @@ public:
 	}
 };
 
-const int Dash::len(10);
-
 class Spread
 {
 private:
@@ -88,33 +90,41 @@ private:
 	class dash : public Dash
 	{
 	public:
-		dash(int x, int y, float a, Uint32 c) : Dash(x, y, a, c)
+		int decc;
+
+		dash(int x, int y, float a, Uint32 c, int d) :
+			Dash(x, y, a, c), decc(d)
 		{}
 		void update() override
 		{
-            //v_magnitude -= 0.0001;
+			color -= decc;
+            v_magnitude -= 0.001;
 			Dash::update();
+		}
+		Uint8 transparency()
+		{
+			return color % (16*16);
 		}
 	};
 
-	std::vector<Dash*> m_dash;
+	std::vector<dash*> m_dash;
 	Vector start;
-	int distance;
+	int distance, decc;
 	bool spreading;
 
 public:
 	Spread(int x, int y) :
-		start(x, y), distance(randint(50, 100)),
-		spreading(true)
+		start(x, y), distance(randint(30, 75)),
+		decc(randint(7, 10)), spreading(true)
     {
     	int n = randint(50, 100);
     	float section = 2*pi/n;
-		Uint32 color = 0;
-		for (int k=0; k<6; ++k)
+		Uint32 color = 0xff;
+		for (int k=2; k<8; ++k)
 			color += randint(6, 15)*std::pow(16, k);
         for (int i=0; i<n; ++i)
 			if (rand()%2)
-				m_dash.push_back(new dash(x, y, i*section, color));
+				m_dash.push_back(new dash(x, y, i*section, color, decc));
     }
 
     ~Spread()
@@ -138,12 +148,16 @@ public:
 
 		if (!m_dash.empty())
 		{
+			/*
             Vector cur = m_dash[0]->getPosition();
             if ((cur - start).magnitude() >= distance)
 			{
 				spreading = false;
 				return false;
 			}
+			*/
+            if (m_dash[0]->transparency() == 255%decc)
+				return spreading = false;
 		}
 
 		for (auto& d : m_dash)
@@ -159,19 +173,24 @@ private:
     std::vector<Spread*> spread;
     Dash *dash;
     Vector dest;
+
     class m_Dash : public Dash
     {
 	public:
 		m_Dash(Vector dest) :
-			Dash(randint(width*0.25, width*0.75), height, 0, 0xffffff)
+			Dash(randint(0, width), height, 0, 0x0)
 		{
+			color = 0xff;
+			for (int k=2; k<8; ++k)
+				color += randint(6, 15)*std::pow(16, k);
+			len = 15;
 			v_magnitude = 5;
             velocity = dest - start;
             velocity.normalize();
 		}
 		void update() override
 		{
-            v_magnitude += 0.3;
+            v_magnitude += 0.6;
             Dash::update();
 		}
     };
@@ -227,11 +246,46 @@ public:
 class Main
 {
 private:
-	System *s;
+
+	class Text
+	{
+	private:
+		SDL_Surface* surface;
+		SDL_Rect position;
+		TTF_Font *font;
+
+	public:
+
+		Text(const std::string& content, int font_size, SDL_Color color, Sint16 y)
+		{
+			font = TTF_OpenFont("font.ttf", font_size);
+			if (font)
+			{
+				surface = TTF_RenderText_Solid(font, content.c_str(), color);
+				position.x = Sint16((width-surface->w)/2);
+				position.y = y;
+			}
+			else
+				std::cerr << TTF_GetError() << std::endl;
+		}
+		~Text()
+		{
+			SDL_FreeSurface(surface);
+			TTF_CloseFont(font);
+		}
+		void draw(SDL_Surface* screen)
+		{
+			SDL_BlitSurface(surface, NULL, screen, &position);
+		}
+	};
+
+	std::list<System*> systems;
+	std::vector<Text*> texts;
     SDL_Surface* screen;
     static Main* self;
+    int start_time, wait;
 
-	Main()
+	Main() : start_time(SDL_GetTicks()), wait(0)
 	{
 		SDL_Init(SDL_INIT_VIDEO);
         screen = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE);
@@ -242,29 +296,55 @@ private:
 		}
 
 		TTF_Init();
+		srand(time(0));
+
+		texts.push_back(new Text("ARAHABA NAHATRATRA NY TAONA E!", 25, { 255, 255, 255 }, height/4));
+		texts.push_back(new)
 	}
 
 	~Main()
 	{
+		for (auto& text : texts)
+			delete text;
+		texts.clear();
+		for (auto& sys : systems)
+			delete sys;
+		systems.clear();
 		TTF_Quit();
         SDL_Quit();
 	}
 
 	void update()
 	{
-		if (s)
-			if (!s->update())
-			{
-				delete s;
-				s = nullptr;
-			}
+        if ((SDL_GetTicks() - start_time) >= 300)
+		{
+            systems.push_back(new System);
+            start_time = SDL_GetTicks();
+		}
+
+        if (systems.empty())
+			return;
+
+		using iter = std::list<System*>::iterator;
+		std::vector<iter> to_remove;
+		for (iter it=begin(systems); it != end(systems); ++it)
+			if (!(*it)->update())
+				to_remove.emplace_back(it);
+		for (auto& it : to_remove)
+		{
+			delete *it;
+			systems.erase(it);
+		}
 	}
 
 	void draw()
 	{
-		SDL_FillRect(screen, NULL, 0x1e1e1e);
-		if (s)
-			s->draw(screen);
+		SDL_FillRect(screen, NULL, bg);
+        if (!systems.empty())
+			for (auto& sys : systems)
+				sys->draw(screen);
+		for (auto& text : texts)
+			text->draw(screen);
 		SDL_Flip(screen);
 	}
 
@@ -274,23 +354,15 @@ public:
 		if (!self)
 			self = new Main;
 
-		bool running(true);
 		SDL_Event e;
-		while (running)
+		while (true)
 		{
-            while (SDL_PollEvent(&e))
-			{
-				if (e.type == SDL_KEYDOWN or e.type == SDL_QUIT)
-				{
-					running = false;
-					break;
-				}
-				else if (e.type == SDL_MOUSEBUTTONUP)
-					self->s = new System;
-			}
+            SDL_PollEvent(&e);
+			if (e.type == SDL_KEYDOWN or e.type == SDL_QUIT)
+				break;
             self->update();
             self->draw();
-            SDL_Delay(25);
+            SDL_Delay(30);
 		}
 
 		delete self;
@@ -308,7 +380,6 @@ int randint(int a, int b)
 
 int main(int argc, char* argv[])
 {
-	srand(time(0));
 	Main::run();
     return 0;
 }
