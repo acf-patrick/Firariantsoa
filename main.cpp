@@ -250,23 +250,27 @@ private:
 	class Text
 	{
 	private:
-		SDL_Surface* surface;
-		SDL_Rect position;
 		TTF_Font *font;
+		static Text* prec;
 
 	public:
+		SDL_Surface* surface;
+		SDL_Rect position;
 
-		Text(const std::string& content, int font_size, SDL_Color color, Sint16 y)
+		Text(const std::string& content, int font_size, SDL_Color color, Sint16 y = -1)
 		{
+			if (prec and y < 0)
+				y = (prec->position.y + prec->surface->h) + 20;
 			font = TTF_OpenFont("font.ttf", font_size);
 			if (font)
 			{
-				surface = TTF_RenderText_Solid(font, content.c_str(), color);
+				surface = TTF_RenderText_Blended(font, content.c_str(), color);
 				position.x = Sint16((width-surface->w)/2);
 				position.y = y;
 			}
 			else
 				std::cerr << TTF_GetError() << std::endl;
+			prec = this;
 		}
 		~Text()
 		{
@@ -298,8 +302,21 @@ private:
 		TTF_Init();
 		srand(time(0));
 
-		texts.push_back(new Text("ARAHABA NAHATRATRA NY TAONA E!", 25, { 255, 255, 255 }, height/4));
-		texts.push_back(new)
+		texts.push_back(new Text("ARAHABA NAHATRATRA NY TAONA E!", 25, { 255, 255, 255 }, height*0.125));
+		texts.push_back(new Text("2021", 100, { 0, 0, 255 }));
+
+		Text *dolar, *text;
+		std::string t[] = { "mv 2020 2021", "echo 'fahasalamana, fahombiazana, fitiavana, ...' > 2021" };
+		for (int i=0; i<2; ++i)
+		{
+			dolar = new Text("-$", 15, { 0, 255, 72 });
+			text = new Text(t[i], 15, { 186, 186, 186 });
+			dolar->position.x = 20;
+			text->position.x = 20 + dolar->position.x + dolar->surface->w;
+			text->position.y = dolar->position.y;
+			texts.push_back(dolar);
+			texts.push_back(text);
+		}
 	}
 
 	~Main()
@@ -369,6 +386,7 @@ public:
 	}
 };
 
+Main::Text* Main::Text::prec = nullptr;
 Main* Main::self = nullptr;
 
 int randint(int a, int b)
