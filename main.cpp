@@ -1,35 +1,53 @@
 #include <cmath>
 #include <ctime>
 #include <vector>
+#include <list>
 #include <iostream>
 #include <SDL/SDL.h>
 #include <SDL/SDL_ttf.h>
 #include <SDL/SDL_gfxPrimitives.h>
 
 // [a; b]
-int randint(int a, int b)
-{
-    if (a > b)
-		return randint(b, a);
-	return a + (rand()/RAND_MAX)*(b-a);
-}
+int randint(int, int);
 
 const float pi = 3.14159265358979323846;
+
+const int width(480), height(360);
 
 struct Vector
 {
 	float x, y;
-	Vector(float _x, float _y) : x(_x), y(_y)
+	Vector(float _x = 0, float _y = 0) : x(_x), y(_y)
 	{}
+
+	float magnitude()
+	{ return std::sqrt(x*x + y*y); }
+
+	void normalize()
+	{
+		float n = magnitude();
+		if (n != 0.f)
+		{
+			x /= n;
+			y /= n;
+		}
+	}
+
     Vector operator+(const Vector& v)
-    {
-		return Vector(v.x + x, v.y + y);
-    }
+    { return Vector(v.x + x, v.y + y); }
+
+    Vector operator-(const Vector& v)
+    { return Vector(x - v.x, y - v.y); }
+
     Vector operator*(const float f)
-    {
-    	return Vector(x*f, y*f);
-    }
+    { return Vector(x*f, y*f); }
 };
+
+std::ostream& operator<<(std::ostream& stream, const Vector& v)
+{
+    stream << '(' << v.x << ", " << v.y << ')';
+    return stream;
+}
 
 class Dash
 {
@@ -38,13 +56,14 @@ protected:
 	float v_magnitude;
 	Uint32 color;
 
-public:
 	static const int len;
+
+public:
 
     Dash(int x, int y, float a, Uint32 c) :
     	start(x, y),
     	velocity(std::cos(a), std::sin(a)),
-    	v_magnitude(0.5), color(c)
+    	v_magnitude(2), color(c)
     {}
 
     virtual ~Dash() {}
@@ -60,6 +79,11 @@ public:
     {
 		start = start + velocity*v_magnitude;
     }
+
+	Vector getPosition()
+	{
+		return start;
+	}
 };
 
 const int Dash::len(10);
@@ -75,16 +99,12 @@ private:
 		{}
 		void update() override
 		{
-            v_magnitude -= 0.0001;
+            // v_magnitude -= 0.0001;
 			Dash::update();
-		}
-		Vector getPosition()
-		{
-			return start;
 		}
 	};
 
-	std::vector<dash*> m_dash;
+	std::vector<Dash*> m_dash;
 	Vector start;
 	int distance;
 
@@ -121,7 +141,7 @@ public:
 		if (!m_dash.empty())
 		{
             Vector cur = m_dash[0]->getPosition();
-            if (std::sqrt(std::pow(cur.x-start.x, 2) + std::pow(cur.y-start.y, 2)) >= distance)
+            if ((cur - start).magnitude() >= distance)
 				return false;
 		}
 
@@ -132,17 +152,73 @@ public:
 	}
 };
 
+class System
+{
+private:
+    Spread *spread;
+    Dash *dash;
+    Vector dest;
+    class m_Dash : public Dash
+    {
+	public:
+		m_Dash(Vector dest) :
+			Dash(width/2, height, 0, 0xffffff)
+		{
+			v_magnitude = 8;
+            velocity = dest - start;
+            velocity.normalize();
+		}
+    };
+
+public:
+	System() : spread(nullptr), dest(randint(width/4, 0.75*width), randint(0, height/2))
+	{
+        dash = new m_Dash(dest);
+	}
+
+	~System()
+	{
+		delete spread;
+		delete dash;
+	}
+
+	bool update()
+    {
+    	if (spread)
+		{
+			if (!spread->update())
+				return false;
+		}
+		else
+		{
+            Vector position(dash->getPosition());
+            if ((dest - position).magnitude() <= 4)
+				spread = new Spread(dest.x, dest.y);
+			dash->update();
+		}
+		return true;
+    }
+
+    void draw(SDL_Surface* screen)
+    {
+    	if (spread)
+			spread->draw(screen);
+		else
+			dash->draw(screen);
+    }
+};
+
 class Main
 {
 private:
-	Spread *s;
+	System *s;
     SDL_Surface* screen;
     static Main* self;
 
 	Main()
 	{
 		SDL_Init(SDL_INIT_VIDEO);
-        screen = SDL_SetVideoMode(480, 360, 32, SDL_HWSURFACE);
+        screen = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE);
         if (!screen)
 		{
 			std::cerr << SDL_GetError() << std::endl;
@@ -150,7 +226,6 @@ private:
 		}
 
 		TTF_Init();
-		srand(time(0));
 	}
 
 	~Main()
@@ -195,11 +270,11 @@ public:
 					break;
 				}
 				else if (e.type == SDL_MOUSEBUTTONUP)
-					self->s = new Spread(e.button.x, e.button.y);
+					self->s = new System;
 			}
             self->update();
             self->draw();
-            SDL_Delay(5);
+            SDL_Delay(25);
 		}
 
 		delete self;
@@ -208,8 +283,16 @@ public:
 
 Main* Main::self = nullptr;
 
+int randint(int a, int b)
+{
+    if (a > b)
+		return randint(b, a);
+	return a + (rand()/(float)RAND_MAX)*(b-a);
+}
+
 int main(int argc, char* argv[])
 {
+	srand(time(0));
 	Main::run();
     return 0;
 }

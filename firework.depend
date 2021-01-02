@@ -1,8 +1,9 @@
 # depslib dependency file v1.0
-1609550343 source:/home/acf/Bureau/firework/main.cpp
+1609609323 source:/home/acf/Bureau/firework/main.cpp
 	<cmath>
 	<ctime>
 	<vector>
+	<list>
 	<iostream>
 	<SDL/SDL.h>
 	<SDL/SDL_ttf.h>
