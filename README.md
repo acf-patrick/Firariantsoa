@@ -1,3 +1,3 @@
 # 2021
 Happy New Year! 😘
-<img src='screenshot.jpg'/>
+<img src='screenshot.png'/>

@@ -303,10 +303,10 @@ private:
 		srand(time(0));
 
 		texts.push_back(new Text("ARAHABA NAHATRATRA NY TAONA E!", 25, { 255, 255, 255 }, height*0.125));
-		texts.push_back(new Text("2021", 100, { 0, 0, 255 }));
+		texts.push_back(new Text("2022", 100, { 0, 0, 255 }));
 
 		Text *dolar, *text;
-		std::string t[] = { "mv 2020 2021", "echo 'fahasalamana, fahombiazana, fitiavana, ...' > 2021" };
+		std::string t[] = { "mv 2021 2022", "echo 'fahasalamana, fahombiazana, fitiavana, ...' > 2022" };
 		for (int i=0; i<2; ++i)
 		{
 			dolar = new Text("-$", 15, { 0, 255, 72 });
